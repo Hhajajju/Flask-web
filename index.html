@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{Earncash</title>
+    
+ </style>
+/* General Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #000;
+    color: #fff;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    flex-direction: column;
+}
+
+h1, h2, h3, h4, p {
+    margin: 15px;
+}
+
+a {
+    text-decoration: none;
+    color: #fff;
+    font-size: 18px;
+    margin: 10px;
+}
+
+/* Button Styles */
+button, .button {
+    background-color: #FFD700; /* Gold */
+    border: none;
+    padding: 15px 30px;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 50px; /* Oval button */
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin: 10px;
+}
+
+button:hover, .button:hover {
+    background-color: #DAA520; /* Darker gold on hover */
+}
+
+button:active, .button:active {
+    background-color: #B8860B; /* Darker gold on click */
+}
+
+button:disabled, .button:disabled {
+    background-color: #A9A9A9;
+    cursor: not-allowed;
+}
+
+/* Loading Screen */
+#loading-screen {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    flex-direction: column;
+}
+
+#loading-screen h1 {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+#loading-screen img {
+    margin-top: 20px;
+}
+
+/* Section Styles */
+.section {
+    display: none;
+    width: 100%;
+    max-width: 480px; /* For small screen */
+    padding: 20px;
+    text-align: center;
+}
+
+h2, h3 {
+    color: #FFD700;
+}
+
+.timer {
+    font-size: 14px;
+    color: #ddd;
+}
+
+/* Home Section */
+#home-section {
+    display: block;
+}
+
+/* Footer Section */
+.footer {
+    position: fixed;
+    bottom: 10px;
+    left: 0;
+    width: 100%;
+    background-color: #333;
+    padding: 10px;
+    text-align: center;
+}
+
+.footer a {
+    margin: 0 15px;
+    font-size: 18px;
+}
+
+/* Ads Section */
+#ads-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.ads-button-container {
+    background-color: #222;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.ads-button-container span {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.ads-button-container button {
+    width: 100%;
+    padding: 10px 0;
+}
+
+.ads-button-container p {
+    font-size: 14px;
+    color: #bbb;
+    margin-top: 10px;
+}
+
+/* Withdrawal Form */
+#withdraw-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+#withdraw-form input, #withdraw-form select {
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: 1px solid #444;
+    background-color: #333;
+    color: white;
+}
+
+#withdraw-form label {
+    color: #ccc;
+    font-size: 14px;
+}
+
+/* Media Queries for Small Screens */
+@media screen and (max-width: 600px) {
+    .footer a {
+        font-size: 16px;
+    }
+
+    .button, .claim-btn {
+        width: 100%;
+    }
+
+    .section {
+        padding: 10px;
+    }
+
+    .ads-button-container {
+        padding: 10px;
+    }
+}
+</style>
+</head>
+<body>
+
+{% if session.get('admin_authenticated') %}
+    <!-- Admin Dashboard -->
+    <h1>Admin Dashboard</h1>
+
+    <!-- Admin Login Form (if not authenticated) -->
+    {% if not session.get('admin_authenticated') %}
+    <form method="post">
+        <input type="text" name="username" placeholder="Admin Username" required>
+        <input type="password" name="password" placeholder="Admin Password" required>
+        <button type="submit">Login</button>
+    </form>
+    {% else %}
+    <div class="table-container">
+        <h2>Users</h2>
+        <table>
+            <tr>
+                <th>User ID</th>
+                <th>Telegram ID</th>
+                <th>Balance</th>
+                <th>Referral Earnings</th>
+            </tr>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.telegram_id }}</td>
+                <td>${{ user.balance }}</td>
+                <td>${{ user.referral_earnings }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="table-container">
+        <h2>Withdrawal Requests</h2>
+        <table>
+            <tr>
+                <th>User</th>
+                <th>Amount</th>
+                <th>Address</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+            {% for withdrawal in withdrawals %}
+            <tr>
+                <td>{{ withdrawal.user.telegram_id }}</td>
+                <td>${{ withdrawal.amount }}</td>
+                <td>{{ withdrawal.address }}</td>
+                <td>{{ withdrawal.status }}</td>
+                <td>
+                    {% if withdrawal.status == 'Pending' %}
+                    <form method="post" action="{{ url_for('approve_withdrawal', withdrawal_id=withdrawal.id) }}">
+                        <button type="submit" class="btn">Approve</button>
+                    </form>
+                    <form method="post" action="{{ url_for('reject_withdrawal', withdrawal_id=withdrawal.id) }}">
+                        <button type="submit" class="btn btn-danger">Reject</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+{% else %}
+    <!-- User Dashboard -->
+    <div class="container">
+        <header>
+            <!-- Logo -->
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="EarnCash" class="logo">
+            <h2>Welcome, {{ username }} (ID: {{ user_id }})</h2>
+        </header>
+
+        <!-- Daily Reward Section -->
+        <section id="daily-reward">
+            <h3>Claim your daily reward</h3>
+            <button id="claim-reward" onclick="claimDailyReward()">Claim Reward</button>
+            <p id="claim-timer">Next claim in: <span id="next-claim-timer">24 hours</span></p>
+        </section>
+
+        <!-- Earning Section -->
+        <section id="earnings">
+            <h3>Watch Ads and Earn</h3>
+            <div class="ad-buttons">
+                <!-- Buttons for watching ads -->
+                <button id="ad_1" onclick="watchAd(1)">Watch Ad 1</button>
+                <div id="ad-container-1" class="ad-container"></div>
+
+                <button id="ad_2" onclick="watchAd(2)">Watch Ad 2</button>
+                <div id="ad-container-2" class="ad-container"></div>
+
+                <button id="ad_3" onclick="watchAd(3)">Watch Ad 3</button>
+                <div id="ad-container-3" class="ad-container"></div>
+
+                <button id="ad_4" onclick="watchAd(4)">Watch Ad 4</button>
+                <div id="ad-container-4" class="ad-container"></div>
+
+                <button id="ad_5" onclick="watchAd(5)">Watch Ad 5</button>
+                <div id="ad-container-5" class="ad-container"></div>
+
+                <button id="ad_6" onclick="watchAd(6)">Watch Ad 6</button>
+                <div id="ad-container-6" class="ad-container"></div>
+
+                <button id="ad_7" onclick="watchAd(7)">Watch Ad 7</button>
+                <div id="ad-container-7" class="ad-container"></div>
+
+                <button id="ad_8" onclick="watchAd(8)">Watch Ad 8</button>
+                <div id="ad-container-8" class="ad-container"></div>
+
+                <button id="ad_9" onclick="watchAd(9)">Watch Ad 9</button>
+                <div id="ad-container-9" class="ad-container"></div>
+
+                <button id="ad_10" onclick="watchAd(10)">Watch Ad 10</button>
+                <div id="ad-container-10" class="ad-container"></div>
+            </div>
+        </section>
+
+        <!-- Referral Section -->
+        <section id="referrals">
+            <h3>Your Referral Link</h3>
+            <p><a href="{{ referral_link }}" target="_blank">{{ referral_link }}</a></p>
+            <h4>Your Referrals</h4>
+            <ul>
+                {% if referrals %}
+                    {% for referral in referrals %}
+                        <li>{{ referral.username }} - Earnings: ${{ referral.earnings }}</li>
+                    {% endfor %}
+                {% else %}
+                    <li>No referrals yet!</li>
+                {% endif %}
+            </ul>
+        </section>
+
+        <!-- Withdraw Section -->
+        <section id="withdraw">
+            <h3>Withdraw Funds</h3>
+            <form id="withdraw-form" onsubmit="submitWithdraw(event)">
+                <input type="number" name="amount" placeholder="Amount to withdraw" required>
+                <input type="text" name="address" placeholder="Withdrawal Address (TON/LTC)" required>
+                <button type="submit">Submit Withdrawal</button>
+            </form>
+            <p id="withdraw-status">No withdrawals yet.</p>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <ul>
+                <li><a href="#home" onclick="showSection('home')">Home</a></li>
+                <li><a href="#earnings" onclick="showSection('earnings')">Earnings</a></li>
+                <li><a href="#referrals" onclick="showSection('referrals')">Friends</a></li>
+                <li><a href="#withdraw" onclick="showSection('withdraw')">Withdraw</a></li>
+            </ul>
+        </footer>
+    </div>
+{% endif %}
+
+</script>
+// Function to show the loading screen
+function showLoadingScreen(message) {
+    const loadingScreen = document.createElement('div');
+    loadingScreen.id = 'loading-screen';
+    loadingScreen.style.position = 'fixed';
+    loadingScreen.style.top = '0';
+    loadingScreen.style.left = '0';
+    loadingScreen.style.width = '100%';
+    loadingScreen.style.height = '100%';
+    loadingScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    loadingScreen.style.color = 'white';
+    loadingScreen.style.fontSize = '24px';
+    loadingScreen.style.display = 'flex';
+    loadingScreen.style.justifyContent = 'center';
+    loadingScreen.style.alignItems = 'center';
+    loadingScreen.innerHTML = `<p>${message}</p>`;
+    document.body.appendChild(loadingScreen);
+}
+
+// Function to hide the loading screen
+function hideLoadingScreen() {
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+    }
+}
+
+// Function to claim the daily reward
+function claimDailyReward() {
+    const userId = 'user1'; // Replace with actual user identifier from your app context
+
+    // Show loading screen while waiting for the API response
+    showLoadingScreen('Claiming your reward... Please wait.');
+
+    fetch('/claim_daily_reward', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoadingScreen(); // Hide the loading screen
+        alert(data.message);
+        // Update the timer and disable the button if necessary
+        document.getElementById('claim-reward').disabled = true;
+        startClaimTimer();
+    })
+    .catch(error => {
+        hideLoadingScreen(); // Hide the loading screen if there's an error
+        alert("Error claiming reward");
+    });
+}
+
+// Function to handle watching an ad for different ad scripts
+function watchAd(adId) {
+    const adContainer = document.getElementById(`ad-container-${adId}`);
+    
+    // Show the ad loading message initially
+    adContainer.innerHTML = '<div class="ad-placeholder">Ad is loading...</div>';
+    
+    // Show loading screen for ad watching process
+    showLoadingScreen('Loading ad... Please wait.');
+
+    fetch('/watch_ad', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ad_id: adId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoadingScreen(); // Hide the loading screen after receiving the response
+        alert(data.message);
+        adContainer.innerHTML = `<div class="ad-placeholder">${data.message}</div>`;
+    })
+    .catch(error => {
+        hideLoadingScreen(); // Hide the loading screen in case of error
+        adContainer.innerHTML = '<div class="ad-placeholder">Error loading ad</div>';
+    });
+
+    // Disable the button for 2 hours after watching the ad
+    document.getElementById(`ad_${adId}`).disabled = true;
+    startAdTimer(adId);
+}
+
+// Simulated ad functions for different ad networks (replace with actual API calls)
+function showGoogleAd(adContainer) {
+    // Google Ad Script
+    (adsbygoogle = window.adsbygoogle || []).push({
+        google_ad_client: "ca-pub-XXXXX", // Replace with your AdMob client ID
+        enable_page_level_ads: true
+    });
+    adContainer.innerHTML = '<div class="ad-placeholder">Google Ad successfully loaded.</div>';
+}
+
+function showUnityAd(adContainer) {
+    // Unity Ad Script
+    if (typeof unityAds !== "undefined") {
+        unityAds.show('video', {
+            videoCompleted: function() {
+                adContainer.innerHTML = '<div class="ad-placeholder">Unity Ad successfully watched.</div>';
+            },
+            videoFailed: function() {
+                adContainer.innerHTML = '<div class="ad-placeholder">Unity Ad failed to load.</div>';
+            }
+        });
+    } else {
+        adContainer.innerHTML = '<div class="ad-placeholder">Unity Ads not available.</div>';
+    }
+}
+
+function showFacebookAd(adContainer) {
+    // Facebook Ad Script
+    if (FBInstant) {
+        FBInstant.initializeAsync().then(function() {
+            FBInstant.getRewardedVideoAsync().then(function(rewardedVideo) {
+                rewardedVideo.showAsync().then(function() {
+                    adContainer.innerHTML = '<div class="ad-placeholder">Facebook Ad successfully watched.</div>';
+                }).catch(function(err) {
+                    adContainer.innerHTML = '<div class="ad-placeholder">Facebook Ad failed to load.</div>';
+                });
+            });
+        });
+    } else {
+        adContainer.innerHTML = '<div class="ad-placeholder">Facebook Audience Network is not initialized.</div>';
+    }
+}
+
+function showVungleAd(adContainer) {
+    // Vungle Ad Script
+    if (window.Vungle) {
+        Vungle.loadAd('your-ad-placement-id').then(() => {
+            Vungle.showAd().then(() => {
+                adContainer.innerHTML = '<div class="ad-placeholder">Vungle Ad successfully watched.</div>';
+            }).catch((err) => {
+                adContainer.innerHTML = '<div class="ad-placeholder">Vungle Ad failed to load.</div>';
+            });
+        });
+    } else {
+        adContainer.innerHTML = '<div class="ad-placeholder">Vungle Ads not available.</div>';
+    }
+}
+
+function showChartboostAd(adContainer) {
+    // Chartboost Ad Script
+    if (window.Chartboost) {
+        Chartboost.showInterstitial('your-ad-spot-id').then(() => {
+            adContainer.innerHTML = '<div class="ad-placeholder">Chartboost Ad successfully watched.</div>';
+        }).catch(() => {
+            adContainer.innerHTML = '<div class="ad-placeholder">Chartboost Ad failed to load.</div>';
+        });
+    } else {
+        adContainer.innerHTML = '<div class="ad-placeholder">Chartboost Ads not available.</div>';
+    }
+}
+
+function showTapjoyAd(adContainer) {
+    // Tapjoy Ad Script
+    if (window.Tapjoy) {
+        Tapjoy.requestTapjoyInterstitialAd().then(() => {
+            adContainer.innerHTML = '<div class="ad-placeholder">Tapjoy Ad successfully watched.</div>';
+        }).catch(() => {
+            adContainer.innerHTML = '<div class="ad-placeholder">Tapjoy Ad failed to load.</div>';
+        });
+    } else {
+        adContainer.innerHTML = '<div class="ad-placeholder">Tapjoy Ads not available.</div>';
+    }
+}
+
+function showInMobiAd(adContainer) {
+    // InMobi Ad Script
+    if (window.InMobi) {
+        InMobi.showAd('your-placement-id').then(() => {
+            adContainer.innerHTML = '<div class="ad-placeholder">InMobi Ad successfully watched.</div>';
+        }).catch(() => {
+            adContainer.innerHTML = '<div class="ad-placeholder">InMobi Ad failed to load.</div>';
+        });
+    } else {
+        adContainer.innerHTML = '<div class="ad-placeholder">InMobi Ads not available.</div>';
+    }
+}
+
+function showAdColonyAd(adContainer) {
+    // AdColony Ad Script
+    if (window.AdColony) {
+        AdColony.showRewardedAd('your-zone-id').then(() => {
+            adContainer.innerHTML = '<div class="ad-placeholder">AdColony Ad successfully watched.</div>';
+        }).catch(() => {
+            adContainer.innerHTML = '<div class="ad-placeholder">AdColony Ad failed to load.</div>';
+        });
+    } else {
+        adContainer.innerHTML = '<div class="ad-placeholder">AdColony Ads not available.</div>';
+    }
+}
+
+function showIronSourceAd(adContainer) {
+    // IronSource Ad Script
+    if (window.IronSource) {
+        IronSource.showInterstitialAd().then(() => {
+            adContainer.innerHTML = '<div class="ad-placeholder">IronSource Ad successfully watched.</div>';
+        }).catch(() => {
+            adContainer.innerHTML = '<div class="ad-placeholder">IronSource Ad failed to load.</div>';
+        });
+    } else {
+        adContainer.innerHTML = '<div class="ad-placeholder">IronSource Ads not available.</div>';
+    }
+}
+
+// Timer for ad watch cooldown
+function startAdTimer(adId) {
+    let nextAdTime = 2 * 60 * 60 * 1000; // 2 hours cooldown for the ad button
+    setTimeout(() => {
+        document.getElementById(`ad_${adId}`).disabled = false;
+    }, nextAdTime);
+}
+
+// Function to toggle between sections in the footer
+function showSection(sectionId) {
+    document.querySelectorAll('section').forEach(section => {
+        section.style.display = section.id === sectionId ? 'block' : 'none';
+    });
+}
+
+// Submit withdrawal form
+function submitWithdraw(event) {
+    event.preventDefault();
+    const form = new FormData(event.target);
+
+    // Show loading screen while waiting for the withdrawal response
+    showLoadingScreen('Processing withdrawal...');
+
+    fetch('/withdraw', {
+        method: 'POST',
+        body: form
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoadingScreen(); // Hide loading screen after response
+        alert(data.message);
+        document.getElementById('withdraw-status').textContent = 'Withdrawal pending';
+    })
+    .catch(error => {
+        hideLoadingScreen(); // Hide loading screen if there's an error
+        alert('Error submitting withdrawal');
+    });
+}
+
+// Initial setup: Show home section by default
+document.addEventListener('DOMContentLoaded', function() {
+    showSection('home');
+});
+</script>
+</body>
+</html>
